@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Discover Events — EventHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Hero -->
+    <div class="text-center mb-5">
+        <h1 class="fw-bold display-5">Discover Local Events</h1>
+        <p class="text-muted fs-5">Find and book concerts, workshops, meetups and more near you</p>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card p-4 mb-4">
+        <form method="get" action="">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form.q }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.category }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.price_type }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.date_from }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.date_to }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.sort }}
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'events:list' %}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results count -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="text-muted">{{ events|length }} event{{ events|length|pluralize }} found</span>
+        {% if user.is_authenticated and user.is_organizer %}
+        <a href="{% url 'events:create' %}" class="btn btn-success btn-sm">
+            <i class="bi bi-plus-lg me-1"></i> Create Event
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Event Cards -->
+    {% if events %}
+    <div class="row g-4">
+        {% for event in events %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <!-- Cover image -->
+                {% if event.get_cover %}
+                <img src="{{ event.get_cover }}" class="card-img-top" style="height:180px;object-fit:cover;" alt="{{ event.title }}">
+                {% else %}
+                <div class="card-img-top bg-gradient d-flex align-items-center justify-content-center"
+                     style="height:180px;background:linear-gradient(135deg,#6366f1,#8b5cf6);">
+                    <i class="bi bi-calendar-event text-white" style="font-size:3rem;opacity:.5;"></i>
+                </div>
+                {% endif %}
+
+                <div class="card-body d-flex flex-column">
+                    <!-- Category badge -->
+                    {% if event.category %}
+                    <span class="badge bg-primary bg-opacity-10 text-primary mb-2" style="width:fit-content;">
+                        {{ event.category.name }}
+                    </span>
+                    {% endif %}
+
+                    <h5 class="card-title fw-bold mb-1">{{ event.title }}</h5>
+
+                    <div class="text-muted small mb-2">
+                        <i class="bi bi-calendar3 me-1"></i> {{ event.date|date:"d M Y, H:i" }}<br>
+                        <i class="bi bi-geo-alt me-1"></i> {{ event.location }}
+                    </div>
+
+                    <p class="card-text text-muted small flex-grow-1">
+                        {{ event.description|truncatewords:20 }}
+                    </p>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            {% if event.is_free %}
+                            <span class="badge bg-success">Free</span>
+                            {% else %}
+                            <span class="fw-bold text-primary">₼{{ event.price }}</span>
+                            {% endif %}
+                            <span class="text-muted small ms-2">
+                                {% if event.is_full %}
+                                <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Full</span>
+                                {% else %}
+                                {{ event.available_spots }} spots left
+                                {% endif %}
+                            </span>
+                        </div>
+                        <a href="{% url 'events:detail' event.pk %}" class="btn btn-outline-primary btn-sm">
+                            View <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-calendar-x display-3 d-block mb-3 opacity-25"></i>
+        <h5>No events found</h5>
+        <p>Try adjusting your search filters</p>
+        <a href="{% url 'events:list' %}" class="btn btn-outline-primary">Clear Filters</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

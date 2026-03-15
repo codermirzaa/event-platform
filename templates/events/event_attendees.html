@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Attendees — {{ event.title }}{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{% url 'events:my_events' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h4 class="fw-bold mb-0">Attendees</h4>
+            <p class="text-muted mb-0">{{ event.title }}</p>
+        </div>
+    </div>
+
+    <div class="card">
+        {% if bookings %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Reference</th>
+                        <th>Booked At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                    <tr>
+                        <td class="text-muted">{{ forloop.counter }}</td>
+                        <td>{{ booking.attendee.get_full_name|default:"—" }}</td>
+                        <td>{{ booking.attendee.username }}</td>
+                        <td>{{ booking.attendee.email }}</td>
+                        <td><span class="font-monospace small">{{ booking.reference }}</span></td>
+                        <td class="text-muted small">{{ booking.booked_at|date:"d M Y, H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-people display-3 d-block mb-3 opacity-25"></i>
+            <p>No attendees yet</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

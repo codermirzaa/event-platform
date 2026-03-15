@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}My Events — EventHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">My Events</h4>
+        <a href="{% url 'events:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Create Event
+        </a>
+    </div>
+
+    {% if events %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Event</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Bookings</th>
+                        <th>Capacity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ event.title }}</div>
+                            <div class="text-muted small">{{ event.category.name|default:"—" }}</div>
+                        </td>
+                        <td class="text-muted small">{{ event.date|date:"d M Y, H:i" }}</td>
+                        <td>
+                            <span class="badge
+                                {% if event.status == 'published' %}bg-success
+                                {% elif event.status == 'draft' %}bg-warning text-dark
+                                {% else %}bg-danger{% endif %}">
+                                {{ event.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ event.booking_count }}</td>
+                        <td>{{ event.capacity }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'events:detail' event.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if event.status != 'cancelled' %}
+                                <a href="{% url 'events:edit' event.pk %}" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'events:attendees' event.pk %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-people"></i>
+                                </a>
+                                <a href="{% url 'events:cancel' event.pk %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-circle"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-calendar-plus display-3 d-block mb-3 opacity-25"></i>
+        <h5>No events yet</h5>
+        <a href="{% url 'events:create' %}" class="btn btn-primary mt-2">Create Your First Event</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

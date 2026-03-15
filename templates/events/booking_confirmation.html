@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Booking Confirmed — EventHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="card p-5">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                         style="width:80px;height:80px;">
+                        <i class="bi bi-check-lg text-success" style="font-size:2.5rem;"></i>
+                    </div>
+                    <h3 class="fw-bold">Booking Confirmed!</h3>
+                    <p class="text-muted">Your spot has been reserved</p>
+                </div>
+
+                <div class="bg-light rounded-3 p-4 mb-4">
+                    <div class="text-muted small mb-1">Reference Number</div>
+                    <div class="fs-3 fw-bold text-primary font-monospace">{{ booking.reference }}</div>
+                </div>
+
+                <ul class="list-unstyled text-start mb-4">
+                    <li class="d-flex gap-3 mb-3">
+                        <i class="bi bi-calendar3 text-primary"></i>
+                        <div>
+                            <div class="fw-semibold">{{ booking.event.title }}</div>
+                            <div class="text-muted small">{{ booking.event.date|date:"l, d F Y — H:i" }}</div>
+                        </div>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="bi bi-geo-alt text-primary"></i>
+                        <div class="text-muted">{{ booking.event.location }}</div>
+                    </li>
+                </ul>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'accounts:dashboard' %}" class="btn btn-primary">
+                        <i class="bi bi-speedometer2 me-1"></i> Go to Dashboard
+                    </a>
+                    <a href="{% url 'events:list' %}" class="btn btn-outline-secondary">
+                        Browse More Events
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

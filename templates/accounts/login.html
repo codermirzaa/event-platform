@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Login — EventHub{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5" style="background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-lg-4">
+                <div class="card p-4 p-md-5">
+                    <!-- Header Section -->
+                    <div class="text-center mb-4">
+                        <i class="bi bi-calendar-event-fill fs-1 text-primary"></i>
+                        <h2 class="fw-bold mt-2">Welcome back</h2>
+                        <p class="text-muted">Sign in to your EventHub account</p>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Username Field -->
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                            {{ form.username }}
+                        </div>
+
+                        <!-- Password Field -->
+                        <div class="mb-4">
+                            <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
+                            {{ form.password }}
+                            {% if form.non_field_errors %}
+                                <div class="text-danger small mt-1">{{ form.non_field_errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                        </button>
+                    </form>
+
+                    <!-- Sign Up Link -->
+                    <p class="text-center mt-4 mb-0 text-muted">
+                        Don't have an account? <a href="{% url 'accounts:register' %}" class="text-primary fw-semibold">Sign up</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

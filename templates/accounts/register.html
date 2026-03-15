@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — EventHub{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5" style="background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="card p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-calendar-event-fill fs-1 text-primary"></i>
+                        <h2 class="fw-bold mt-2">Create your account</h2>
+                        <p class="text-muted">Join EventHub to discover or host events</p>
+                    </div>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Role Selection Section -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">I want to...</label>
+                            <div class="row g-2">
+                                {% for radio in form.role %}
+                                <div class="col-6">
+                                    <div class="border rounded-3 p-3 text-center {% if forloop.first %}border-primary bg-light{% endif %} role-card" style="cursor:pointer;">
+                                        {{ radio.tag }}
+                                        <div class="mt-1 small">{{ radio.choice_label }}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if form.role.errors %}
+                                <div class="text-danger small mt-1">{{ form.role.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Name Fields -->
+                        <div class="row g-2 mb-3">
+                            <div class="col">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">First name</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}<div class="text-danger small">{{ form.first_name.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Last name</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Username Field -->
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                            {{ form.username }}
+                            {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+                        </div>
+
+                        <!-- Email Field -->
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email address</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
+                        </div>
+
+                        <!-- Password Fields -->
+                        <div class="mb-3">
+                            <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
+                            {{ form.password1 }}
+                            {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm password</label>
+                            {{ form.password2 }}
+                            {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors }}</div>{% endif %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                            Create Account
+                        </button>
+                    </form>
+
+                    <p class="text-center mt-4 mb-0 text-muted">
+                        Already have an account? <a href="{% url 'accounts:login' %}" class="text-primary fw-semibold">Log in</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

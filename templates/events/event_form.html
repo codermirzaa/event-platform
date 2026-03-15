@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Event — EventHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <a href="{% url 'events:my_events' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h4 class="fw-bold mb-0">{{ action }} Event</h4>
+            </div>
+
+            <div class="card p-4 p-md-5">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    <div class="row g-3">
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                            {{ form.title }}
+                            {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+                            {{ form.description }}
+                            {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                            {{ form.category }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Date & Time <span class="text-danger">*</span></label>
+                            {{ form.date }}
+                            {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Location / Venue <span class="text-danger">*</span></label>
+                            {{ form.location }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Capacity <span class="text-danger">*</span></label>
+                            {{ form.capacity }}
+                            {% if form.capacity.errors %}<div class="text-danger small mt-1">{{ form.capacity.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ticket Price (₼)</label>
+                            {{ form.price }}
+                            <div class="form-text">Enter 0 for a free event</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Cover Image (upload)</label>
+                            {{ form.cover_image }}
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Or Cover Image URL</label>
+                            {{ form.cover_image_url }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            {{ form.status }}
+                            <div class="form-text">Save as Draft to review before publishing</div>
+                        </div>
+
+                        <div class="col-12 pt-2">
+                            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                                <i class="bi bi-check-lg me-1"></i> {{ action }} Event
+                            </button>
+                            <a href="{% url 'events:my_events' %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard — EventHub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3 col-lg-2 sidebar py-4 px-3">
+            <nav class="nav flex-column">
+                <span class="text-muted small fw-semibold px-3 mb-2 text-uppercase">Attendee</span>
+                <a class="nav-link active" href="{% url 'accounts:dashboard' %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+                <a class="nav-link" href="{% url 'events:list' %}">
+                    <i class="bi bi-search"></i> Browse Events
+                </a>
+                <hr>
+                <a class="nav-link" href="{% url 'accounts:profile' %}">
+                    <i class="bi bi-person"></i> Profile
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 py-4 px-4">
+            <!-- Welcome Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 class="fw-bold mb-0">Hello, {{ user.first_name|default:user.username }}! 👋</h4>
+                    <p class="text-muted mb-0">Discover and book amazing local events</p>
+                </div>
+                <a href="{% url 'events:list' %}" class="btn btn-primary">
+                    <i class="bi bi-search me-1"></i> Browse Events
+                </a>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6">
+                    <div class="card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-ticket-perforated fs-4 text-primary"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">{{ upcoming|length }}</div>
+                                <div class="text-muted small">Upcoming Bookings</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="card p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-check-circle fs-4 text-success"></i>
+                            </div>
+                            <div>
+                                <div class="fs-4 fw-bold">{{ past|length }}</div>
+                                <div class="text-muted small">Past Events</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Bookings Section -->
+            <div class="card p-4 mb-4">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-clock me-2"></i>Upcoming Bookings</h6>
+                {% if upcoming %}
+                <div class="list-group list-group-flush">
+                    {% for booking in upcoming %}
+                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">{{ booking.event.title }}</div>
+                            <div class="text-muted small">
+                                <i class="bi bi-calendar3 me-1"></i>{{ booking.event.date|date:"d M Y, H:i" }}
+                                &nbsp;·&nbsp;
+                                <i class="bi bi-geo-alt me-1"></i>{{ booking.event.location }}
+                            </div>
+                            <span class="font-monospace small text-muted">{{ booking.reference }}</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'events:detail' booking.event.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                            {% if booking.can_cancel %}
+                            <a href="{% url 'events:cancel_booking' booking.pk %}" class="btn btn-sm btn-outline-danger">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-25"></i>
+                    <p class="mb-2">No upcoming bookings</p>
+                    <a href="{% url 'events:list' %}" class="btn btn-outline-primary btn-sm">Browse Events</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Past Events Section -->
+            {% if past %}
+            <div class="card p-4">
+                <h6 class="fw-semibold mb-3"><i class="bi bi-clock-history me-2"></i>Past Events</h6>
+                <div class="list-group list-group-flush">
+                    {% for booking in past %}
+                    <div class="list-group-item px-0">
+                        <div class="fw-semibold">{{ booking.event.title }}</div>
+                        <div class="text-muted small">{{ booking.event.date|date:"d M Y" }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
