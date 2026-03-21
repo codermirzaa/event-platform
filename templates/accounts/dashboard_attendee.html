@@ -4,7 +4,7 @@
 {% block content %}
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar Navigation -->
+        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar py-4 px-3">
             <nav class="nav flex-column">
                 <span class="text-muted small fw-semibold px-3 mb-2 text-uppercase">Attendee</span>
@@ -21,9 +21,8 @@
             </nav>
         </div>
 
-        <!-- Main Content -->
+        <!-- Content -->
         <div class="col-md-9 col-lg-10 py-4 px-4">
-            <!-- Welcome Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h4 class="fw-bold mb-0">Hello, {{ user.first_name|default:user.username }}! 👋</h4>
@@ -34,7 +33,7 @@
                 </a>
             </div>
 
-            <!-- Statistics Cards -->
+            <!-- Stats -->
             <div class="row g-3 mb-4">
                 <div class="col-sm-6">
                     <div class="card p-3">
@@ -64,7 +63,7 @@
                 </div>
             </div>
 
-            <!-- Upcoming Bookings Section -->
+            <!-- Upcoming bookings -->
             <div class="card p-4 mb-4">
                 <h6 class="fw-semibold mb-3"><i class="bi bi-clock me-2"></i>Upcoming Bookings</h6>
                 {% if upcoming %}
@@ -82,6 +81,9 @@
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{% url 'events:detail' booking.event.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                            <a href="{% url 'events:view_ticket' booking.pk %}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-qr-code"></i> Ticket
+                            </a>
                             {% if booking.can_cancel %}
                             <a href="{% url 'events:cancel_booking' booking.pk %}" class="btn btn-sm btn-outline-danger">Cancel</a>
                             {% endif %}
@@ -98,7 +100,7 @@
                 {% endif %}
             </div>
 
-            <!-- Past Events Section -->
+            <!-- Past events -->
             {% if past %}
             <div class="card p-4">
                 <h6 class="fw-semibold mb-3"><i class="bi bi-clock-history me-2"></i>Past Events</h6>

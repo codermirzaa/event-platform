@@ -15,10 +15,19 @@ urlpatterns = [
     path('my-events/', views.my_events, name='my_events'),
     path('<int:pk>/attendees/', views.event_attendees, name='attendees'),
 
+    # F-08: QR ticket
+    path('booking/<int:pk>/ticket/', views.view_ticket, name='view_ticket'),
+
+    # Ticket verification
+    path('verify/', views.verify_ticket, name='verify_ticket'),
+
     # F-05: Booking
     path('<int:pk>/book/', views.book_ticket, name='book'),
     path('booking/<int:pk>/confirmation/', views.booking_confirmation, name='booking_confirmation'),
     path('booking/<int:pk>/cancel/', views.cancel_booking, name='cancel_booking'),
+
+    # F-12: Mock payment
+    path('<int:pk>/payment/', views.payment, name='payment'),
 
     # F-07: Admin
     path('admin/events/', views.admin_events, name='admin_events'),

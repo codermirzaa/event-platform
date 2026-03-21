@@ -108,7 +108,7 @@
                         {% if event.is_full %}
                         <button class="btn btn-secondary w-100" disabled>Fully Booked</button>
                         {% else %}
-                        <a href="{% url 'events:book' event.pk %}" class="btn btn-primary w-100 py-2 fw-semibold">
+                        <a href="{% if event.is_free %}{% url "events:book" event.pk %}{% else %}{% url "events:payment" event.pk %}{% endif %}" class="btn btn-primary w-100 py-2 fw-semibold">
                             <i class="bi bi-ticket-perforated me-1"></i> Book Ticket
                         </a>
                         {% endif %}

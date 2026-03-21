@@ -6,15 +6,10 @@ from django.utils import timezone
 
 from .models import Event, Booking, Category
 from .forms import EventForm, EventSearchForm
-from accounts.decorators import organizer_required, admin_required
+from accounts.decorators import organizer_required, admin_required, role_required
 
-
-# ─────────────────────────────────────────────
-#  F-04: Event Discovery
-# ─────────────────────────────────────────────
 
 def event_list(request):
-    """Homepage — upcoming published events with search & filter."""
     form = EventSearchForm(request.GET)
     events = Event.objects.filter(
         status=Event.Status.PUBLISHED,
@@ -55,10 +50,8 @@ def event_list(request):
 
 
 def event_detail(request, pk):
-    """Event detail page."""
     event = get_object_or_404(Event, pk=pk)
 
-    # Only show published events to non-organizers
     if event.status != Event.Status.PUBLISHED:
         if not request.user.is_authenticated:
             return redirect('accounts:login')
@@ -76,13 +69,8 @@ def event_detail(request, pk):
     })
 
 
-# ─────────────────────────────────────────────
-#  F-03: Event Management (Organizer)
-# ─────────────────────────────────────────────
-
 @organizer_required
 def event_create(request):
-    """Organizer creates a new event."""
     if request.method == 'POST':
         form = EventForm(request.POST, request.FILES)
         if form.is_valid():
@@ -104,10 +92,8 @@ def event_create(request):
 
 @organizer_required
 def event_edit(request, pk):
-    """Organizer edits their event."""
     event = get_object_or_404(Event, pk=pk)
 
-    # Only the organizer or admin can edit
     if event.organizer != request.user and not request.user.is_platform_admin:
         messages.error(request, "You can only edit your own events.")
         return redirect('events:detail', pk=pk)
@@ -136,7 +122,6 @@ def event_edit(request, pk):
 
 @organizer_required
 def event_cancel(request, pk):
-    """Organizer cancels their event."""
     event = get_object_or_404(Event, pk=pk)
 
     if event.organizer != request.user and not request.user.is_platform_admin:
@@ -154,7 +139,6 @@ def event_cancel(request, pk):
 
 @organizer_required
 def my_events(request):
-    """Organizer's event list."""
     events = Event.objects.filter(organizer=request.user).annotate(
         booking_count=Count('bookings')
     ).order_by('-created_at')
@@ -164,7 +148,6 @@ def my_events(request):
 
 @organizer_required
 def event_attendees(request, pk):
-    """Organizer views attendees for their event."""
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
     bookings = event.bookings.filter(
         status=Booking.Status.CONFIRMED
@@ -176,31 +159,22 @@ def event_attendees(request, pk):
     })
 
 
-# ─────────────────────────────────────────────
-#  F-05: Ticket Booking
-# ─────────────────────────────────────────────
-
 @login_required
 def book_ticket(request, pk):
-    """Attendee books a ticket."""
     event = get_object_or_404(Event, pk=pk, status=Event.Status.PUBLISHED)
 
-    # Organizers cannot book their own events
     if event.organizer == request.user:
         messages.error(request, "You cannot book your own event.")
         return redirect('events:detail', pk=pk)
 
-    # Check if already booked
     if Booking.objects.filter(event=event, attendee=request.user).exists():
         messages.warning(request, "You have already booked this event.")
         return redirect('events:detail', pk=pk)
 
-    # Check capacity
     if event.is_full:
         messages.error(request, "Sorry, this event is fully booked.")
         return redirect('events:detail', pk=pk)
 
-    # Check event is in future
     if not event.is_upcoming:
         messages.error(request, "This event has already passed.")
         return redirect('events:detail', pk=pk)
@@ -215,14 +189,47 @@ def book_ticket(request, pk):
 
 @login_required
 def booking_confirmation(request, pk):
-    """Booking confirmation page with reference number."""
     booking = get_object_or_404(Booking, pk=pk, attendee=request.user)
-    return render(request, 'events/booking_confirmation.html', {'booking': booking})
+
+    from .utils import generate_qr_code
+    qr_data = (
+        f"EventHub Ticket\n"
+        f"Ref: {booking.reference}\n"
+        f"Event: {booking.event.title}\n"
+        f"Date: {booking.event.date.strftime('%d %b %Y, %H:%M')}\n"
+        f"Attendee: {booking.attendee.get_full_name() or booking.attendee.username}"
+    )
+    qr_code = generate_qr_code(qr_data)
+
+    return render(request, 'events/booking_confirmation.html', {
+        'booking': booking,
+        'qr_code': qr_code,
+    })
+
+
+@login_required
+def view_ticket(request, pk):
+    booking = get_object_or_404(Booking, pk=pk, attendee=request.user)
+
+    from .utils import generate_qr_code
+    qr_data = (
+        f"EventHub Ticket\n"
+        f"Ref: {booking.reference}\n"
+        f"Event: {booking.event.title}\n"
+        f"Date: {booking.event.date.strftime('%d %b %Y, %H:%M')}\n"
+        f"Location: {booking.event.location}\n"
+        f"Attendee: {booking.attendee.get_full_name() or booking.attendee.username}"
+    )
+    qr_code = generate_qr_code(qr_data)
+
+    return render(request, 'events/ticket.html', {
+        'booking': booking,
+        'qr_code': qr_code,
+    })
 
 
 @login_required
 def cancel_booking(request, pk):
-    """Attendee cancels their booking."""
     booking = get_object_or_404(Booking, pk=pk, attendee=request.user)
 
     if not booking.can_cancel:
@@ -238,13 +245,8 @@ def cancel_booking(request, pk):
     return render(request, 'events/cancel_booking_confirm.html', {'booking': booking})
 
 
-# ─────────────────────────────────────────────
-#  F-07: Admin Moderation
-# ─────────────────────────────────────────────
-
 @admin_required
 def admin_events(request):
-    """Admin views and moderates all events."""
     events = Event.objects.all().select_related('organizer', 'category').annotate(
         booking_count=Count('bookings')
     ).order_by('-created_at')
@@ -254,7 +256,6 @@ def admin_events(request):
 
 @admin_required
 def admin_event_action(request, pk):
-    """Admin approves, rejects, or deletes an event."""
     event = get_object_or_404(Event, pk=pk)
 
     if request.method == 'POST':
@@ -273,3 +274,83 @@ def admin_event_action(request, pk):
             return redirect('events:admin_events')
 
     return redirect('events:admin_events')
+
+
+@role_required('organizer', 'admin')
+def verify_ticket(request):
+    """Yalnız Organizer və Admin bileti yoxlaya bilər."""
+    result = None
+    reference = ''
+
+    if request.method == 'POST':
+        reference = request.POST.get('reference', '').strip().upper()
+        try:
+            booking = Booking.objects.select_related('event', 'attendee').get(reference=reference)
+
+            if not request.user.is_platform_admin and booking.event.organizer != request.user:
+                result = {'status': 'error', 'message': 'You do not have permission to verify this ticket.'}
+            elif booking.status == Booking.Status.CANCELLED:
+                result = {'status': 'invalid', 'message': 'This ticket has been cancelled.', 'booking': booking}
+            elif booking.is_used:
+                result = {'status': 'used', 'message': f'Already used at {booking.used_at.strftime("%d %b %Y, %H:%M") if booking.used_at else "unknown time"}.', 'booking': booking}
+            else:
+                booking.is_used = True
+                booking.used_at = timezone.now()
+                booking.save()
+                result = {'status': 'valid', 'message': 'Ticket is valid! Entry granted.', 'booking': booking}
+
+        except Booking.DoesNotExist:
+            result = {'status': 'notfound', 'message': f'No ticket found with reference "{reference}".'}
+
+    return render(request, 'events/verify_ticket.html', {
+        'result': result,
+        'reference': reference,
+    })
+
+
+@login_required
+def payment(request, pk):
+    """F-12: Mock payment flow for paid events."""
+    event = get_object_or_404(Event, pk=pk, status=Event.Status.PUBLISHED)
+
+    if event.is_free:
+        return redirect('events:book', pk=pk)
+
+    if Booking.objects.filter(event=event, attendee=request.user).exists():
+        messages.warning(request, "You have already booked this event.")
+        return redirect('events:detail', pk=pk)
+
+    if event.is_full:
+        messages.error(request, "Sorry, this event is fully booked.")
+        return redirect('events:detail', pk=pk)
+
+    if not event.is_upcoming:
+        messages.error(request, "This event has already passed.")
+        return redirect('events:detail', pk=pk)
+
+    if request.method == 'POST':
+        card_number = request.POST.get('card_number', '').replace(' ', '')
+        expiry = request.POST.get('expiry', '')
+        cvv = request.POST.get('cvv', '')
+        name = request.POST.get('card_name', '')
+
+        errors = []
+        if len(card_number) != 16 or not card_number.isdigit():
+            errors.append("Invalid card number.")
+        if not expiry or len(expiry) != 5:
+            errors.append("Invalid expiry date.")
+        if len(cvv) not in [3, 4] or not cvv.isdigit():
+            errors.append("Invalid CVV.")
+        if not name.strip():
+            errors.append("Cardholder name is required.")
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'events/payment.html', {'event': event})
+
+        booking = Booking.objects.create(event=event, attendee=request.user)
+        messages.success(request, f'Payment successful! Booking confirmed: {booking.reference}')
+        return redirect('events:booking_confirmation', pk=booking.pk)
+
+    return render(request, 'events/payment.html', {'event': event})

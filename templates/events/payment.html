@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Payment — {{ event.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="row g-4">
+
+                <!-- Payment form -->
+                <div class="col-md-7">
+                    <div class="card p-4">
+                        <h5 class="fw-bold mb-4">
+                            <i class="bi bi-credit-card me-2 text-primary"></i>Payment Details
+                        </h5>
+
+                        <!-- Test mode banner -->
+                        <div class="alert alert-info py-2 mb-4">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Test Mode</strong> — Use any 16-digit number. No real payment will be made.
+                        </div>
+
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Card Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
+                                    <input type="text" name="card_number" class="form-control"
+                                           placeholder="1234 5678 9012 3456"
+                                           maxlength="19"
+                                           oninput="formatCard(this)"
+                                           required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Cardholder Name</label>
+                                <input type="text" name="card_name" class="form-control"
+                                       placeholder="JOHN DOE" style="text-transform:uppercase;" required>
+                            </div>
+
+                            <div class="row g-3 mb-4">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">Expiry Date</label>
+                                    <input type="text" name="expiry" class="form-control"
+                                           placeholder="MM/YY" maxlength="5"
+                                           oninput="formatExpiry(this)" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">CVV</label>
+                                    <input type="text" name="cvv" class="form-control"
+                                           placeholder="123" maxlength="4" required>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                                <i class="bi bi-lock-fill me-2"></i>
+                                Pay ₼{{ event.price }}
+                            </button>
+
+                            <p class="text-center text-muted small mt-3">
+                                <i class="bi bi-shield-check me-1"></i>
+                                Secure simulated payment
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Order summary -->
+                <div class="col-md-5">
+                    <div class="card p-4">
+                        <h6 class="fw-bold mb-3">Order Summary</h6>
+
+                        {% if event.get_cover %}
+                        <img src="{{ event.get_cover }}" class="img-fluid rounded-3 mb-3"
+                             style="height:120px;object-fit:cover;" alt="{{ event.title }}">
+                        {% endif %}
+
+                        <div class="fw-semibold mb-1">{{ event.title }}</div>
+                        <div class="text-muted small mb-1">
+                            <i class="bi bi-calendar3 me-1"></i>{{ event.date|date:"d M Y, H:i" }}
+                        </div>
+                        <div class="text-muted small mb-3">
+                            <i class="bi bi-geo-alt me-1"></i>{{ event.location }}
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Ticket price</span>
+                            <span>₼{{ event.price }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Service fee</span>
+                            <span class="text-success">Free</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between fw-bold">
+                            <span>Total</span>
+                            <span class="text-primary fs-5">₼{{ event.price }}</span>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'events:detail' event.pk %}" class="btn btn-outline-secondary w-100 mt-3">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Event
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatCard(input) {
+    let value = input.value.replace(/\D/g, '').substring(0, 16);
+    input.value = value.replace(/(.{4})/g, '$1 ').trim();
+}
+
+function formatExpiry(input) {
+    let value = input.value.replace(/\D/g, '').substring(0, 4);
+    if (value.length >= 2) {
+        value = value.substring(0, 2) + '/' + value.substring(2);
+    }
+    input.value = value;
+}
+</script>
+{% endblock %}

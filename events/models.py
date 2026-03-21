@@ -4,10 +4,9 @@ from django.utils import timezone
 
 
 class Category(models.Model):
-    """Event categories (e.g. Music, Sports, Workshop)"""
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
-    icon = models.CharField(max_length=50, blank=True, help_text="Bootstrap icon name e.g. bi-music-note")
+    icon = models.CharField(max_length=50, blank=True)
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -18,14 +17,11 @@ class Category(models.Model):
 
 
 class Event(models.Model):
-    """F-03: Event model"""
-
     class Status(models.TextChoices):
         DRAFT = 'draft', 'Draft'
         PUBLISHED = 'published', 'Published'
         CANCELLED = 'cancelled', 'Cancelled'
 
-    # Core fields
     title = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
     organizer = models.ForeignKey(
@@ -39,23 +35,13 @@ class Event(models.Model):
         null=True,
         related_name='events'
     )
-
-    # Date & location
     date = models.DateTimeField()
     location = models.CharField(max_length=255)
-
-    # Ticket info
     capacity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-
-    # Media
     cover_image = models.ImageField(upload_to='events/covers/', blank=True, null=True)
     cover_image_url = models.URLField(blank=True)
-
-    # Status
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
-
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -86,7 +72,6 @@ class Event(models.Model):
         return self.date > timezone.now()
 
     def get_cover(self):
-        """Return cover image URL (uploaded file or external URL)."""
         if self.cover_image:
             return self.cover_image.url
         if self.cover_image_url:
@@ -95,8 +80,6 @@ class Event(models.Model):
 
 
 class Booking(models.Model):
-    """F-05: Ticket booking model"""
-
     class Status(models.TextChoices):
         CONFIRMED = 'confirmed', 'Confirmed'
         CANCELLED = 'cancelled', 'Cancelled'
@@ -109,10 +92,11 @@ class Booking(models.Model):
     )
     reference = models.CharField(max_length=20, unique=True, editable=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CONFIRMED)
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
     booked_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # One booking per attendee per event
         unique_together = ('event', 'attendee')
         ordering = ['-booked_at']
 
@@ -120,7 +104,6 @@ class Booking(models.Model):
         return f"{self.reference} — {self.attendee.username} @ {self.event.title}"
 
     def save(self, *args, **kwargs):
-        # Auto-generate unique reference number
         if not self.reference:
             import uuid
             self.reference = 'EVT-' + str(uuid.uuid4()).upper()[:8]
@@ -128,7 +111,6 @@ class Booking(models.Model):
 
     @property
     def can_cancel(self):
-        """Attendee can cancel up to 24 hours before event."""
         from datetime import timedelta
         return (
             self.status == self.Status.CONFIRMED and

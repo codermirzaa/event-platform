@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Verify Ticket — EventHub{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="text-center mb-4">
+                <i class="bi bi-qr-code-scan display-4 text-primary"></i>
+                <h3 class="fw-bold mt-2">Ticket Verification</h3>
+                <p class="text-muted">Enter the reference number to verify a ticket</p>
+            </div>
+
+            <div class="card p-4 mb-4">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="reference" value="{{ reference }}"
+                               class="form-control form-control-lg font-monospace"
+                               placeholder="EVT-XXXXXXXX"
+                               style="text-transform:uppercase;"
+                               autofocus>
+                        <button type="submit" class="btn btn-primary px-4">Verify</button>
+                    </div>
+                </form>
+            </div>
+
+            {% if result %}
+            <div class="card p-4
+                {% if result.status == 'valid' %}border-success
+                {% elif result.status == 'used' %}border-warning
+                {% else %}border-danger{% endif %}"
+                style="border-width: 2px !important;">
+
+                <div class="text-center mb-3">
+                    {% if result.status == 'valid' %}
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                             style="width:70px;height:70px;">
+                            <i class="bi bi-check-lg text-success" style="font-size:2rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-success">Valid Ticket</h5>
+                    {% elif result.status == 'used' %}
+                        <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                             style="width:70px;height:70px;">
+                            <i class="bi bi-exclamation-triangle text-warning" style="font-size:2rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-warning">Already Used</h5>
+                    {% elif result.status == 'invalid' %}
+                        <div class="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                             style="width:70px;height:70px;">
+                            <i class="bi bi-x-lg text-danger" style="font-size:2rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-danger">Cancelled Ticket</h5>
+                    {% else %}
+                        <div class="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                             style="width:70px;height:70px;">
+                            <i class="bi bi-question-lg text-danger" style="font-size:2rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-danger">Not Found</h5>
+                    {% endif %}
+                    <p class="text-muted mb-0">{{ result.message }}</p>
+                </div>
+
+                {% if result.booking %}
+                <hr>
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex gap-3 mb-2">
+                        <i class="bi bi-calendar3 text-primary"></i>
+                        <div>
+                            <div class="fw-semibold">{{ result.booking.event.title }}</div>
+                            <div class="text-muted small">{{ result.booking.event.date|date:"d M Y, H:i" }}</div>
+                        </div>
+                    </li>
+                    <li class="d-flex gap-3 mb-2">
+                        <i class="bi bi-person text-primary"></i>
+                        <div>{{ result.booking.attendee.get_full_name|default:result.booking.attendee.username }}</div>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="bi bi-ticket text-primary"></i>
+                        <div class="font-monospace">{{ result.booking.reference }}</div>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

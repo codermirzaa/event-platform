@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}My Ticket — {{ booking.event.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+
+            <!-- Ticket card -->
+            <div class="card overflow-hidden" style="border-radius:16px;">
+
+                <!-- Top colored header -->
+                <div class="p-4 text-white text-center"
+                     style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    <i class="bi bi-calendar-event fs-1 mb-2 d-block opacity-75"></i>
+                    <h4 class="fw-bold mb-1">{{ booking.event.title }}</h4>
+                    {% if booking.event.category %}
+                    <span class="badge bg-white bg-opacity-25">{{ booking.event.category.name }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Dashed separator -->
+                <div class="d-flex align-items-center px-4" style="margin:-1px 0;">
+                    <div style="width:24px;height:24px;background:#f8f9fa;border-radius:50%;margin-left:-12px;flex-shrink:0;"></div>
+                    <div style="flex:1;border-top:2px dashed #dee2e6;"></div>
+                    <div style="width:24px;height:24px;background:#f8f9fa;border-radius:50%;margin-right:-12px;flex-shrink:0;"></div>
+                </div>
+
+                <!-- Ticket body -->
+                <div class="p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <div class="text-muted small">Date</div>
+                            <div class="fw-semibold">{{ booking.event.date|date:"d M Y" }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Time</div>
+                            <div class="fw-semibold">{{ booking.event.date|date:"H:i" }}</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted small">Location</div>
+                            <div class="fw-semibold">{{ booking.event.location }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Attendee</div>
+                            <div class="fw-semibold">{{ booking.attendee.get_full_name|default:booking.attendee.username }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Price</div>
+                            <div class="fw-semibold">
+                                {% if booking.event.is_free %}Free{% else %}₼{{ booking.event.price }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reference -->
+                    <div class="bg-light rounded-3 p-3 text-center mb-4">
+                        <div class="text-muted small mb-1">Reference Number</div>
+                        <div class="fs-4 fw-bold text-primary font-monospace">{{ booking.reference }}</div>
+                    </div>
+
+                    <!-- QR Code -->
+                    {% if qr_code %}
+                    <div class="text-center mb-3">
+                        <img src="data:image/png;base64,{{ qr_code }}"
+                             alt="QR Code" class="img-fluid"
+                             style="max-width:220px; border-radius:12px;">
+                        <p class="text-muted small mt-2">
+                            <i class="bi bi-qr-code me-1"></i>
+                            Show this QR code at the entrance
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Status badge -->
+                    <div class="text-center">
+                        <span class="badge {% if booking.status == 'confirmed' %}bg-success{% else %}bg-danger{% endif %} px-3 py-2">
+                            <i class="bi bi-{% if booking.status == 'confirmed' %}check-circle{% else %}x-circle{% endif %} me-1"></i>
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2 mt-3 justify-content-center">
+                <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Dashboard
+                </a>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="bi bi-printer me-1"></i> Print Ticket
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
