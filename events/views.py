@@ -4,8 +4,8 @@ from django.contrib import messages
 from django.db.models import Q, Count
 from django.utils import timezone
 
-from .models import Event, Booking, Category
-from .forms import EventForm, EventSearchForm
+from .models import Event, Booking, Category, Review
+from .forms import EventForm, EventSearchForm, ReviewForm
 from accounts.decorators import organizer_required, admin_required, role_required
 
 
@@ -60,12 +60,22 @@ def event_detail(request, pk):
             return redirect('events:list')
 
     user_booking = None
+    user_review = None
+    can_review = False
+
     if request.user.is_authenticated:
         user_booking = Booking.objects.filter(event=event, attendee=request.user).first()
+        user_review = Review.objects.filter(event=event, author=request.user).first()
+        can_review = not user_review  # Hər login olmuş istifadəçi rəy yaza bilər
+
+    reviews = event.reviews.select_related('author').all()
 
     return render(request, 'events/event_detail.html', {
         'event': event,
         'user_booking': user_booking,
+        'user_review': user_review,
+        'can_review': can_review,
+        'reviews': reviews,
     })
 
 
@@ -84,10 +94,7 @@ def event_create(request):
     else:
         form = EventForm()
 
-    return render(request, 'events/event_form.html', {
-        'form': form,
-        'action': 'Create',
-    })
+    return render(request, 'events/event_form.html', {'form': form, 'action': 'Create'})
 
 
 @organizer_required
@@ -113,11 +120,7 @@ def event_edit(request, pk):
     else:
         form = EventForm(instance=event)
 
-    return render(request, 'events/event_form.html', {
-        'form': form,
-        'action': 'Edit',
-        'event': event,
-    })
+    return render(request, 'events/event_form.html', {'form': form, 'action': 'Edit', 'event': event})
 
 
 @organizer_required
@@ -142,7 +145,6 @@ def my_events(request):
     events = Event.objects.filter(organizer=request.user).annotate(
         booking_count=Count('bookings')
     ).order_by('-created_at')
-
     return render(request, 'events/my_events.html', {'events': events})
 
 
@@ -152,11 +154,7 @@ def event_attendees(request, pk):
     bookings = event.bookings.filter(
         status=Booking.Status.CONFIRMED
     ).select_related('attendee').order_by('booked_at')
-
-    return render(request, 'events/event_attendees.html', {
-        'event': event,
-        'bookings': bookings,
-    })
+    return render(request, 'events/event_attendees.html', {'event': event, 'bookings': bookings})
 
 
 @login_required
@@ -201,10 +199,7 @@ def booking_confirmation(request, pk):
     )
     qr_code = generate_qr_code(qr_data)
 
-    return render(request, 'events/booking_confirmation.html', {
-        'booking': booking,
-        'qr_code': qr_code,
-    })
+    return render(request, 'events/booking_confirmation.html', {'booking': booking, 'qr_code': qr_code})
 
 
 @login_required
@@ -222,10 +217,7 @@ def view_ticket(request, pk):
     )
     qr_code = generate_qr_code(qr_data)
 
-    return render(request, 'events/ticket.html', {
-        'booking': booking,
-        'qr_code': qr_code,
-    })
+    return render(request, 'events/ticket.html', {'booking': booking, 'qr_code': qr_code})
 
 
 @login_required
@@ -245,72 +237,8 @@ def cancel_booking(request, pk):
     return render(request, 'events/cancel_booking_confirm.html', {'booking': booking})
 
 
-@admin_required
-def admin_events(request):
-    events = Event.objects.all().select_related('organizer', 'category').annotate(
-        booking_count=Count('bookings')
-    ).order_by('-created_at')
-
-    return render(request, 'events/admin_events.html', {'events': events})
-
-
-@admin_required
-def admin_event_action(request, pk):
-    event = get_object_or_404(Event, pk=pk)
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if action == 'publish':
-            event.status = Event.Status.PUBLISHED
-            event.save()
-            messages.success(request, f'Event "{event.title}" published.')
-        elif action == 'cancel':
-            event.status = Event.Status.CANCELLED
-            event.save()
-            messages.success(request, f'Event "{event.title}" cancelled.')
-        elif action == 'delete':
-            event.delete()
-            messages.success(request, 'Event deleted.')
-            return redirect('events:admin_events')
-
-    return redirect('events:admin_events')
-
-
-@role_required('organizer', 'admin')
-def verify_ticket(request):
-    """Yalnız Organizer və Admin bileti yoxlaya bilər."""
-    result = None
-    reference = ''
-
-    if request.method == 'POST':
-        reference = request.POST.get('reference', '').strip().upper()
-        try:
-            booking = Booking.objects.select_related('event', 'attendee').get(reference=reference)
-
-            if not request.user.is_platform_admin and booking.event.organizer != request.user:
-                result = {'status': 'error', 'message': 'You do not have permission to verify this ticket.'}
-            elif booking.status == Booking.Status.CANCELLED:
-                result = {'status': 'invalid', 'message': 'This ticket has been cancelled.', 'booking': booking}
-            elif booking.is_used:
-                result = {'status': 'used', 'message': f'Already used at {booking.used_at.strftime("%d %b %Y, %H:%M") if booking.used_at else "unknown time"}.', 'booking': booking}
-            else:
-                booking.is_used = True
-                booking.used_at = timezone.now()
-                booking.save()
-                result = {'status': 'valid', 'message': 'Ticket is valid! Entry granted.', 'booking': booking}
-
-        except Booking.DoesNotExist:
-            result = {'status': 'notfound', 'message': f'No ticket found with reference "{reference}".'}
-
-    return render(request, 'events/verify_ticket.html', {
-        'result': result,
-        'reference': reference,
-    })
-
-
 @login_required
 def payment(request, pk):
-    """F-12: Mock payment flow for paid events."""
     event = get_object_or_404(Event, pk=pk, status=Event.Status.PUBLISHED)
 
     if event.is_free:
@@ -354,3 +282,87 @@ def payment(request, pk):
         return redirect('events:booking_confirmation', pk=booking.pk)
 
     return render(request, 'events/payment.html', {'event': event})
+
+
+@admin_required
+def admin_events(request):
+    events = Event.objects.all().select_related('organizer', 'category').annotate(
+        booking_count=Count('bookings')
+    ).order_by('-created_at')
+    return render(request, 'events/admin_events.html', {'events': events})
+
+
+@admin_required
+def admin_event_action(request, pk):
+    event = get_object_or_404(Event, pk=pk)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'publish':
+            event.status = Event.Status.PUBLISHED
+            event.save()
+            messages.success(request, f'Event "{event.title}" published.')
+        elif action == 'cancel':
+            event.status = Event.Status.CANCELLED
+            event.save()
+            messages.success(request, f'Event "{event.title}" cancelled.')
+        elif action == 'delete':
+            event.delete()
+            messages.success(request, 'Event deleted.')
+            return redirect('events:admin_events')
+
+    return redirect('events:admin_events')
+
+
+@role_required('organizer', 'admin')
+def verify_ticket(request):
+    result = None
+    reference = ''
+
+    if request.method == 'POST':
+        reference = request.POST.get('reference', '').strip().upper()
+        try:
+            booking = Booking.objects.select_related('event', 'attendee').get(reference=reference)
+
+            if not request.user.is_platform_admin and booking.event.organizer != request.user:
+                result = {'status': 'error', 'message': 'You do not have permission to verify this ticket.'}
+            elif booking.status == Booking.Status.CANCELLED:
+                result = {'status': 'invalid', 'message': 'This ticket has been cancelled.', 'booking': booking}
+            elif booking.is_used:
+                result = {'status': 'used', 'message': f'Already used at {booking.used_at.strftime("%d %b %Y, %H:%M") if booking.used_at else "unknown time"}.', 'booking': booking}
+            else:
+                booking.is_used = True
+                booking.used_at = timezone.now()
+                booking.save()
+                result = {'status': 'valid', 'message': 'Ticket is valid! Entry granted.', 'booking': booking}
+
+        except Booking.DoesNotExist:
+            result = {'status': 'notfound', 'message': f'No ticket found with reference "{reference}".'}
+
+    return render(request, 'events/verify_ticket.html', {'result': result, 'reference': reference})
+
+
+@login_required
+def add_review(request, pk):
+    """F-10: Attendee adds a review for a past event."""
+    event = get_object_or_404(Event, pk=pk)
+
+    if Review.objects.filter(event=event, author=request.user).exists():
+        messages.warning(request, "You have already reviewed this event.")
+        return redirect('events:detail', pk=pk)
+
+    if request.method == 'POST':
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            Review.objects.create(
+                event=event,
+                author=request.user,
+                rating=int(form.cleaned_data['rating']),
+                comment=form.cleaned_data['comment'],
+            )
+            messages.success(request, "Your review has been submitted!")
+            return redirect('events:detail', pk=pk)
+    else:
+        form = ReviewForm()
+
+    return render(request, 'events/add_review.html', {'event': event, 'form': form})

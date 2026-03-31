@@ -7,6 +7,7 @@ urlpatterns = [
     # F-04: Discovery
     path('', views.event_list, name='list'),
     path('<int:pk>/', views.event_detail, name='detail'),
+    path('<int:pk>/review/', views.add_review, name='add_review'),
 
     # F-03: Organizer management
     path('create/', views.event_create, name='create'),

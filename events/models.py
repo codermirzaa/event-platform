@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Category(models.Model):
@@ -71,6 +72,17 @@ class Event(models.Model):
     def is_upcoming(self):
         return self.date > timezone.now()
 
+    @property
+    def average_rating(self):
+        reviews = self.reviews.all()
+        if not reviews:
+            return None
+        return round(sum(r.rating for r in reviews) / len(reviews), 1)
+
+    @property
+    def review_count(self):
+        return self.reviews.count()
+
     def get_cover(self):
         if self.cover_image:
             return self.cover_image.url
@@ -116,3 +128,27 @@ class Booking(models.Model):
             self.status == self.Status.CONFIRMED and
             self.event.date > timezone.now() + timedelta(hours=24)
         )
+
+
+class Review(models.Model):
+    """F-10: Review and rating system."""
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='reviews')
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    comment = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # One review per user per event
+        unique_together = ('event', 'author')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.author.username} — {self.event.title} ({self.rating}★)"

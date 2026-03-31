@@ -4,8 +4,6 @@ from .models import Event, Category
 
 
 class EventForm(forms.ModelForm):
-    """F-03: Event creation and editing form."""
-
     date = forms.DateTimeField(
         widget=forms.DateTimeInput(
             attrs={'class': 'form-control', 'type': 'datetime-local'},
@@ -25,11 +23,11 @@ class EventForm(forms.ModelForm):
         ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Event title'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Describe your event...'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Venue name or address'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
-            'price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': '0.01', 'placeholder': '0 = Free'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': '0.01'}),
             'cover_image': forms.FileInput(attrs={'class': 'form-control'}),
             'cover_image_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://...'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
@@ -43,7 +41,6 @@ class EventForm(forms.ModelForm):
 
     def clean_capacity(self):
         capacity = self.cleaned_data.get('capacity')
-        # On edit: capacity cannot be reduced below existing bookings
         if self.instance and self.instance.pk:
             booked = self.instance.booked_count
             if capacity < booked:
@@ -54,14 +51,9 @@ class EventForm(forms.ModelForm):
 
 
 class EventSearchForm(forms.Form):
-    """F-04: Event search and filter form."""
-
     q = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Search events...',
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search events...'})
     )
     category = forms.ModelChoiceField(
         queryset=Category.objects.all(),
@@ -87,4 +79,21 @@ class EventSearchForm(forms.Form):
         required=False,
         initial='date',
         widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+
+class ReviewForm(forms.Form):
+    """F-10: Review and rating form."""
+
+    rating = forms.ChoiceField(
+        choices=[(i, i) for i in range(1, 6)],
+        widget=forms.RadioSelect(attrs={'class': 'star-radio'}),
+    )
+    comment = forms.CharField(
+        max_length=1000,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Share your experience...',
+        })
     )

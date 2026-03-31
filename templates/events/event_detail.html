@@ -1,12 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}{{ event.title }} — EventHub{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  #event-map { height: 280px; border-radius: 12px; z-index: 1; }
+  .star-display { color: #f59e0b; font-size: 1.1rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
     <div class="row g-4">
         <!-- Main content -->
         <div class="col-lg-8">
-            <!-- Cover -->
             {% if event.get_cover %}
             <img src="{{ event.get_cover }}" class="img-fluid rounded-3 mb-4 w-100" style="max-height:350px;object-fit:cover;" alt="{{ event.title }}">
             {% else %}
@@ -16,30 +23,104 @@
             </div>
             {% endif %}
 
-            <!-- Category & status -->
             <div class="d-flex gap-2 mb-3 flex-wrap">
                 {% if event.category %}
                 <span class="badge bg-primary bg-opacity-10 text-primary">{{ event.category.name }}</span>
                 {% endif %}
-                <span class="badge
-                    {% if event.status == 'published' %}bg-success
-                    {% elif event.status == 'draft' %}bg-warning text-dark
-                    {% else %}bg-danger{% endif %}">
+                <span class="badge {% if event.status == 'published' %}bg-success{% elif event.status == 'draft' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
                     {{ event.get_status_display }}
                 </span>
                 {% if event.is_free %}
                 <span class="badge bg-success bg-opacity-10 text-success">Free</span>
                 {% endif %}
+                {% if event.average_rating %}
+                <span class="badge bg-warning bg-opacity-10 text-warning">
+                    ★ {{ event.average_rating }} ({{ event.review_count }} review{{ event.review_count|pluralize }})
+                </span>
+                {% endif %}
             </div>
 
             <h1 class="fw-bold mb-3">{{ event.title }}</h1>
             <p class="text-muted">{{ event.description }}</p>
+
+            <!-- Reviews — xəritənin üstündə -->
+            <div class="card p-4 mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-star-fill text-warning me-2"></i>Reviews
+                        {% if event.review_count %}
+                        <span class="text-muted fw-normal small">({{ event.review_count }})</span>
+                        {% endif %}
+                    </h6>
+                    {% if can_review %}
+                    <a href="{% url 'events:add_review' event.pk %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-star me-1"></i> Write a Review
+                    </a>
+                    {% endif %}
+                </div>
+
+                {% if event.average_rating %}
+                <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
+                    <div class="text-center">
+                        <div class="display-5 fw-bold text-warning">{{ event.average_rating }}</div>
+                        <div class="star-display">
+                            {% for i in "12345" %}{% if forloop.counter <= event.average_rating %}★{% else %}☆{% endif %}{% endfor %}
+                        </div>
+                        <div class="text-muted small">{{ event.review_count }} review{{ event.review_count|pluralize }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if reviews %}
+                <div class="list-group list-group-flush">
+                    {% for review in reviews %}
+                    <div class="list-group-item px-0 py-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width:36px;height:36px;flex-shrink:0;">
+                                    <i class="bi bi-person text-primary small"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">{{ review.author.get_full_name|default:review.author.username }}</div>
+                                    <div class="text-muted" style="font-size:.75rem;">{{ review.created_at|date:"d M Y" }}</div>
+                                </div>
+                            </div>
+                            <div class="star-display">
+                                {% for i in "12345" %}{% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}{% endfor %}
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-0 mt-2">{{ review.comment }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-star fs-1 d-block mb-2 opacity-25"></i>
+                    <p class="mb-0">No reviews yet</p>
+                </div>
+                {% endif %}
+
+                {% if user_review %}
+                <div class="alert alert-success mt-3 py-2">
+                    <i class="bi bi-check-circle me-1"></i> You have already reviewed this event.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Map — rəylərin altında -->
+            <div class="card p-4 mt-4">
+                <h6 class="fw-semibold mb-3">
+                    <i class="bi bi-geo-alt-fill text-primary me-2"></i>Event Location
+                </h6>
+                <p class="text-muted small mb-3">{{ event.location }}</p>
+                <div id="event-map"></div>
+            </div>
         </div>
 
         <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="card p-4 sticky-top" style="top:80px;">
-                <!-- Event info -->
                 <ul class="list-unstyled mb-4">
                     <li class="d-flex gap-3 mb-3">
                         <i class="bi bi-calendar3 fs-5 text-primary"></i>
@@ -50,33 +131,25 @@
                     </li>
                     <li class="d-flex gap-3 mb-3">
                         <i class="bi bi-geo-alt fs-5 text-primary"></i>
-                        <div>
-                            <div class="fw-semibold">{{ event.location }}</div>
-                        </div>
+                        <div><div class="fw-semibold">{{ event.location }}</div></div>
                     </li>
                     <li class="d-flex gap-3 mb-3">
                         <i class="bi bi-people fs-5 text-primary"></i>
                         <div>
                             <div class="fw-semibold">
-                                {% if event.is_full %}
-                                <span class="text-danger">Fully Booked</span>
-                                {% else %}
-                                {{ event.available_spots }} / {{ event.capacity }} spots available
-                                {% endif %}
+                                {% if event.is_full %}<span class="text-danger">Fully Booked</span>
+                                {% else %}{{ event.available_spots }} / {{ event.capacity }} spots available{% endif %}
                             </div>
                         </div>
                     </li>
                     <li class="d-flex gap-3">
                         <i class="bi bi-tag fs-5 text-primary"></i>
                         <div>
-                            <div class="fw-semibold">
-                                {% if event.is_free %}Free{% else %}₼{{ event.price }}{% endif %}
-                            </div>
+                            <div class="fw-semibold">{% if event.is_free %}Free{% else %}₼{{ event.price }}{% endif %}</div>
                         </div>
                     </li>
                 </ul>
 
-                <!-- Booking button -->
                 {% if user.is_authenticated %}
                     {% if user_booking %}
                         {% if user_booking.status == 'confirmed' %}
@@ -84,6 +157,9 @@
                             <i class="bi bi-check-circle me-1"></i>
                             Booked! Ref: <strong>{{ user_booking.reference }}</strong>
                         </div>
+                        <a href="{% url 'events:view_ticket' user_booking.pk %}" class="btn btn-outline-success w-100 mb-2">
+                            <i class="bi bi-qr-code me-1"></i> View Ticket
+                        </a>
                         {% if user_booking.can_cancel %}
                         <form method="post" action="{% url 'events:cancel_booking' user_booking.pk %}">
                             {% csrf_token %}
@@ -91,8 +167,6 @@
                                 <i class="bi bi-x-circle me-1"></i> Cancel Booking
                             </button>
                         </form>
-                        {% else %}
-                        <p class="text-muted small text-center">Cannot cancel within 24 hours of event.</p>
                         {% endif %}
                         {% else %}
                         <div class="alert alert-secondary py-2">Booking cancelled</div>
@@ -108,12 +182,18 @@
                         {% if event.is_full %}
                         <button class="btn btn-secondary w-100" disabled>Fully Booked</button>
                         {% else %}
-                        <a href="{% if event.is_free %}{% url "events:book" event.pk %}{% else %}{% url "events:payment" event.pk %}{% endif %}" class="btn btn-primary w-100 py-2 fw-semibold">
+                        <a href="{% if event.is_free %}{% url 'events:book' event.pk %}{% else %}{% url 'events:payment' event.pk %}{% endif %}"
+                           class="btn btn-primary w-100 py-2 fw-semibold">
                             <i class="bi bi-ticket-perforated me-1"></i> Book Ticket
                         </a>
                         {% endif %}
                     {% elif not event.is_upcoming %}
                         <button class="btn btn-secondary w-100" disabled>Event Passed</button>
+                        {% if can_review %}
+                        <a href="{% url 'events:add_review' event.pk %}" class="btn btn-outline-warning w-100 mt-2">
+                            <i class="bi bi-star me-1"></i> Write a Review
+                        </a>
+                        {% endif %}
                     {% endif %}
                 {% else %}
                     <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="btn btn-primary w-100 py-2 fw-semibold">
@@ -121,7 +201,6 @@
                     </a>
                 {% endif %}
 
-                <!-- Organizer info -->
                 <hr class="my-3">
                 <div class="text-muted small">
                     <i class="bi bi-person-circle me-1"></i>
@@ -131,4 +210,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const locationQuery = encodeURIComponent("{{ event.location }}");
+fetch(`https://nominatim.openstreetmap.org/search?q=${locationQuery}&format=json&limit=1`)
+    .then(res => res.json())
+    .then(data => {
+        let lat = 40.4093, lng = 49.8671, found = false;
+        if (data && data.length > 0) {
+            lat = parseFloat(data[0].lat);
+            lng = parseFloat(data[0].lon);
+            found = true;
+        }
+        const map = L.map('event-map').setView([lat, lng], found ? 15 : 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        L.marker([lat, lng]).addTo(map)
+            .bindPopup('<strong>{{ event.title }}</strong><br><small>{{ event.location }}</small>')
+            .openPopup();
+    })
+    .catch(() => {
+        const map = L.map('event-map').setView([40.4093, 49.8671], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+    });
+</script>
 {% endblock %}
