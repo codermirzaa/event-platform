@@ -14,6 +14,7 @@ urlpatterns = [
     path('<int:pk>/edit/', views.event_edit, name='edit'),
     path('<int:pk>/cancel/', views.event_cancel, name='cancel'),
     path('my-events/', views.my_events, name='my_events'),
+    path('my-events/analytics/', views.organizer_analytics, name='analytics'),
     path('<int:pk>/attendees/', views.event_attendees, name='attendees'),
 
     # F-08: QR ticket

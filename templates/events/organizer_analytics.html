@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% block title %}Analitika Paneli — EventHub{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Metric cards */
+  .metric-card .metric-label {
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #9ca3af;
+    margin-bottom: .4rem;
+  }
+  .metric-card .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1;
+    color: #111827;
+  }
+  .metric-card .metric-sub {
+    font-size: .72rem;
+    margin-top: .35rem;
+    color: #9ca3af;
+  }
+  .metric-card .metric-sub.up { color: #10b981; }
+
+  /* Progress bar in table */
+  .prog-wrap { display: flex; align-items: center; gap: 8px; }
+  .prog-bg   { flex: 1; height: 5px; background: #f3f4f6; border-radius: 3px; overflow: hidden; min-width: 50px; }
+  .prog-fill { height: 100%; border-radius: 3px; }
+  .prog-pct  { font-size: .72rem; color: #9ca3af; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Chart legend */
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .chart-legend span { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: #6b7280; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Sidebar nav active override for analytics */
+  .sidebar .nav-link.active { background-color: #ede9fe; color: var(--primary); }
+
+  /* Responsive table hide */
+  @media (max-width: 576px) {
+    .hide-xs { display: none; }
+  }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  {# ── Page header ── #}
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h4 class="fw-bold mb-0">Analitika paneli</h4>
+      <p class="text-muted small mb-0 mt-1">
+        Salam, {{ request.user.get_full_name|default:request.user.username }} — tədbirlərinizin ümumi icmalı
+      </p>
+    </div>
+    <a href="{% url 'events:create' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i> Yeni tədbir
+    </a>
+  </div>
+
+  {# ── Metric cards ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="card p-3 metric-card h-100">
+        <div class="metric-label">Ümumi rezerv</div>
+        <div class="metric-value">{{ total_bookings }}</div>
+        <div class="metric-sub up"><i class="bi bi-arrow-up-short"></i>Təsdiqlənmiş</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card p-3 metric-card h-100">
+        <div class="metric-label">Aktiv tədbirlər</div>
+        <div class="metric-value">{{ active_events }}</div>
+        <div class="metric-sub">{{ draft_events }} draft</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card p-3 metric-card h-100">
+        <div class="metric-label">Orta doluluq</div>
+        <div class="metric-value">{{ avg_fill }}%</div>
+        <div class="metric-sub {% if avg_fill >= 70 %}up{% endif %}">
+          {% if avg_fill >= 70 %}Yaxşı göstərici{% else %}Artırıla bilər{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card p-3 metric-card h-100">
+        <div class="metric-label">Hesablanmış gəlir</div>
+        <div class="metric-value">₼{{ total_revenue }}</div>
+        <div class="metric-sub"><i class="bi bi-info-circle me-1"></i>Mock simulyasiya</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Charts row ── #}
+  <div class="row g-3 mb-4">
+
+    {# Line chart — son 6 həftə #}
+    <div class="col-lg-8">
+      <div class="card p-4 h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="fw-semibold mb-0">
+            <i class="bi bi-graph-up text-primary me-2"></i>Bilet satışı — son 6 həftə
+          </h6>
+        </div>
+        <div class="chart-legend" id="lineLegend"></div>
+        <div style="position:relative;width:100%;height:220px;">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    {# Donut — kateqoriya üzrə #}
+    <div class="col-lg-4">
+      <div class="card p-4 h-100">
+        <h6 class="fw-semibold mb-3">
+          <i class="bi bi-pie-chart text-primary me-2"></i>Kateqoriya üzrə rezervlər
+        </h6>
+        {% if donut_data_json != "[]" %}
+        <div style="position:relative;width:100%;height:180px;margin-bottom:12px;">
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div class="chart-legend" id="donutLegend"></div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-pie-chart fs-1 d-block mb-2 opacity-25"></i>
+          <small>Hələ rezerv yoxdur</small>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Events table ── #}
+  <div class="card">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-semibold mb-0">
+          <i class="bi bi-calendar3 text-primary me-2"></i>Tədbirlər icmalı
+        </h6>
+        <a href="{% url 'events:my_events' %}" class="btn btn-outline-primary btn-sm">
+          Hamısına bax <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
+
+      {% if events %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="fw-semibold" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Tədbir</th>
+              <th class="fw-semibold hide-xs" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Tarix</th>
+              <th class="fw-semibold" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Doluluq</th>
+              <th class="fw-semibold" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Rezerv</th>
+              <th class="fw-semibold hide-xs" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Status</th>
+              <th class="fw-semibold" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;">Əməliyyat</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in events %}
+            <tr>
+              <td>
+                <div class="fw-semibold" style="font-size:.9rem;">{{ event.title }}</div>
+                {% if event.category %}
+                <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:.65rem;">
+                  {{ event.category.name }}
+                </span>
+                {% endif %}
+              </td>
+              <td class="hide-xs">
+                <div class="text-muted small">{{ event.date|date:"d M Y" }}</div>
+                <div class="text-muted small">{{ event.date|date:"H:i" }}</div>
+              </td>
+              <td style="min-width:120px;">
+                <div class="prog-wrap">
+                  <div class="prog-bg">
+                    <div class="prog-fill"
+                         style="width:{{ event.fill_pct }}%;
+                                background:{% cycle '#6366f1' '#10b981' '#f59e0b' '#ef4444' '#0ea5e9' %};">
+                    </div>
+                  </div>
+                  <span class="prog-pct">{{ event.fill_pct }}%</span>
+                </div>
+              </td>
+              <td class="text-muted small">
+                {{ event.booking_count }}&thinsp;/&thinsp;{{ event.capacity }}
+              </td>
+              <td class="hide-xs">
+                {% if event.status == 'published' %}
+                  <span class="badge bg-success bg-opacity-10 text-success">Yayımlandı</span>
+                {% elif event.status == 'draft' %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning">Draft</span>
+                {% else %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger">Ləğv edildi</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'events:edit' event.pk %}" class="btn btn-outline-secondary btn-sm me-1">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'events:attendees' event.pk %}" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-people"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-calendar-x display-4 d-block mb-3 opacity-25"></i>
+        <h6>Hələ heç bir tədbir yoxdur</h6>
+        <a href="{% url 'events:create' %}" class="btn btn-primary btn-sm mt-2">
+          <i class="bi bi-plus-lg me-1"></i> İlk tədbirini yarat
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  const weeklyLabels   = {{ weekly_labels_json|safe }};
+  const weeklyDatasets = {{ weekly_datasets_json|safe }};
+  const donutLabels    = {{ donut_labels_json|safe }};
+  const donutData      = {{ donut_data_json|safe }};
+  const donutColors    = {{ donut_colors_json|safe }};
+
+  // ── Line chart ──────────────────────────────────────────────────
+  const lineCtx = document.getElementById('lineChart');
+  if (lineCtx) {
+    new Chart(lineCtx, {
+      type: 'line',
+      data: {
+        labels: weeklyLabels,
+        datasets: weeklyDatasets.map(ds => ({
+          label:            ds.label,
+          data:             ds.data,
+          borderColor:      ds.color,
+          backgroundColor:  ds.color + '18',
+          fill:             false,
+          tension:          0.35,
+          pointRadius:      3,
+          pointHoverRadius: 5,
+          borderWidth:      2,
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => 'Həftə: ' + items[0].label,
+              label:  item  => ' ' + item.dataset.label + ': ' + item.raw + ' bilet',
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 }, color: '#9ca3af' }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: '#f3f4f6' },
+            ticks: { font: { size: 11 }, color: '#9ca3af', stepSize: 5 }
+          }
+        }
+      }
+    });
+
+    const lineLeg = document.getElementById('lineLegend');
+    weeklyDatasets.forEach(ds => {
+      lineLeg.innerHTML +=
+        `<span><span class="leg-dot" style="background:${ds.color}"></span>${ds.label}</span>`;
+    });
+  }
+
+  // ── Donut chart ──────────────────────────────────────────────────
+  const donutCtx = document.getElementById('donutChart');
+  if (donutCtx && donutData.length) {
+    new Chart(donutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: donutLabels,
+        datasets: [{
+          data:            donutData,
+          backgroundColor: donutColors,
+          borderWidth:     0,
+          hoverOffset:     4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: item => ' ' + item.label + ': ' + item.raw + ' rezerv'
+            }
+          }
+        }
+      }
+    });
+
+    const donutLeg = document.getElementById('donutLegend');
+    donutLabels.forEach((lbl, i) => {
+      donutLeg.innerHTML +=
+        `<span><span class="leg-dot" style="background:${donutColors[i]}"></span>${lbl}</span>`;
+    });
+  }
+</script>
+{% endblock %}

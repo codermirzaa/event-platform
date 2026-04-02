@@ -366,3 +366,103 @@ def add_review(request, pk):
         form = ReviewForm()
 
     return render(request, 'events/add_review.html', {'event': event, 'form': form})
+from django.shortcuts import render
+from django.utils import timezone
+from django.db.models import Count, Q
+from datetime import timedelta
+import json
+
+from .models import Event, Booking
+from accounts.decorators import organizer_required
+
+
+@organizer_required
+def organizer_analytics(request):
+    """F-11: Organizer Analytics Dashboard"""
+    organizer = request.user
+
+    # Organizatorun bütün tədbirləri + confirmed booking sayı
+    events = list(
+        Event.objects.filter(organizer=organizer)
+        .select_related('category')
+        .annotate(
+            booking_count=Count(
+                'bookings',
+                filter=Q(bookings__status=Booking.Status.CONFIRMED)
+            )
+        )
+        .order_by('-created_at')
+    )
+
+    # ── Metrik hesablamalar ──────────────────────────────────────────
+    total_bookings = sum(e.booking_count for e in events)
+    active_events  = sum(1 for e in events if e.status == Event.Status.PUBLISHED)
+    draft_events   = sum(1 for e in events if e.status == Event.Status.DRAFT)
+
+    fill_rates = [e.booking_count / e.capacity for e in events if e.capacity > 0]
+    avg_fill   = round(sum(fill_rates) / len(fill_rates) * 100) if fill_rates else 0
+
+    # Mock gəlir: price × confirmed bookings
+    total_revenue = round(sum(float(e.price) * e.booking_count for e in events), 2)
+
+    # Hər tədbirə doluluq faizi
+    for e in events:
+        e.fill_pct = round(e.booking_count / e.capacity * 100) if e.capacity else 0
+
+    # ── Son 6 həftəlik satış (ilk 5 tədbir) ─────────────────────────
+    now = timezone.now()
+    week_labels = [
+        (now - timedelta(weeks=i + 1)).strftime('%d %b')
+        for i in range(5, -1, -1)
+    ]
+
+    palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9']
+    chart_events = events[:5]
+    weekly_datasets = []
+
+    for idx, ev in enumerate(chart_events):
+        data = []
+        for i in range(5, -1, -1):
+            week_start = now - timedelta(weeks=i + 1)
+            week_end   = now - timedelta(weeks=i)
+            count = Booking.objects.filter(
+                event=ev,
+                status=Booking.Status.CONFIRMED,
+                booked_at__gte=week_start,
+                booked_at__lt=week_end,
+            ).count()
+            data.append(count)
+        weekly_datasets.append({
+            'label': ev.title,
+            'data':  data,
+            'color': palette[idx % len(palette)],
+        })
+
+    # ── Donut: kateqoriya üzrə confirmed rezervlər ──────────────────
+    cat_stats = (
+        Booking.objects
+        .filter(event__organizer=organizer, status=Booking.Status.CONFIRMED)
+        .values('event__category__name')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    donut_labels = [s['event__category__name'] or 'Digər' for s in cat_stats]
+    donut_data   = [s['total'] for s in cat_stats]
+    donut_colors = palette[:len(donut_labels)]
+
+    context = {
+        'events':         events,
+        'total_bookings': total_bookings,
+        'active_events':  active_events,
+        'draft_events':   draft_events,
+        'avg_fill':       avg_fill,
+        'total_revenue':  total_revenue,
+
+        'weekly_labels_json':   json.dumps(week_labels),
+        'weekly_datasets_json': json.dumps(weekly_datasets),
+        'donut_labels_json':    json.dumps(donut_labels),
+        'donut_data_json':      json.dumps(donut_data),
+        'donut_colors_json':    json.dumps(donut_colors),
+    }
+
+    return render(request, 'events/organizer_analytics.html', context)
