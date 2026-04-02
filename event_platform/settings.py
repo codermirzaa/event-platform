@@ -55,18 +55,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'event_platform.wsgi.application'
 
-# MySQL Database
+# SQLite Database for testing
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'event_platform_db',
-        'USER': 'eventuser',           
-        'PASSWORD': 'EventPass123!', 
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
