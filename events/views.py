@@ -66,7 +66,13 @@ def event_detail(request, pk):
     if request.user.is_authenticated:
         user_booking = Booking.objects.filter(event=event, attendee=request.user).first()
         user_review = Review.objects.filter(event=event, author=request.user).first()
-        can_review = not user_review  # Hər login olmuş istifadəçi rəy yaza bilər
+        # F-10: Restrict review to confirmed attendees of past events
+        can_review = (
+            user_booking and
+            user_booking.status == Booking.Status.CONFIRMED and
+            not event.is_upcoming and
+            not user_review
+        )
 
     reviews = event.reviews.select_related('author').all()
 
@@ -346,6 +352,16 @@ def verify_ticket(request):
 def add_review(request, pk):
     """F-10: Attendee adds a review for a past event."""
     event = get_object_or_404(Event, pk=pk)
+
+    user_booking = Booking.objects.filter(event=event, attendee=request.user).first()
+
+    if not user_booking or user_booking.status != Booking.Status.CONFIRMED:
+        messages.error(request, "Only attendees with a confirmed booking can leave a review.")
+        return redirect('events:detail', pk=pk)
+
+    if event.is_upcoming:
+        messages.error(request, "You can only leave a review after the event has taken place.")
+        return redirect('events:detail', pk=pk)
 
     if Review.objects.filter(event=event, author=request.user).exists():
         messages.warning(request, "You have already reviewed this event.")
